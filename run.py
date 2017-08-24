@@ -132,9 +132,7 @@ if __name__ == "__main__":
   parser.add_argument("-d", "--detectors",
                     nargs="*",
                     type=str,
-                    default=["null", "numenta", "random", "skyline",
-                             "bayesChangePt", "windowedGaussian", "expose",
-                             "relativeEntropy"],
+                    default=["inscriptive"],
                     help="Comma separated list of detector(s) to use, e.g. "
                          "null,numenta")
 

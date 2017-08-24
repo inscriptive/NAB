@@ -1,0 +1,2 @@
+rm -rf results/inscriptive/*
+cp -r ~/nab/* results/inscriptive
