@@ -11,6 +11,7 @@ nab.egg-info/
 htmjava.log
 nab/detectors/htmjava/.pydevproject
 my_env
+results/**/*.csv*
 
 # Generated files
 

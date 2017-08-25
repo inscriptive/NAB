@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Graph Page</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="draw_graph.js"></script>
+    <script src="draw_diagnostics.js"></script>
+
+    <style>
+        body {
+            font-family: "Helvetica";
+        }
+
+        .graph {
+            height: 500px;
+            width: 100%;
+        }
+
+        .graph-container {
+            height: 300px;
+            width: 100%;
+            border: solid grey 1px;
+            margin-top: 10px;
+        }
+
+        .diagnostics {
+            display: flex;
+            flex-wrap: wrap;
+            width: 1500px;
+        }
+
+        .feature-container {
+            height: 300px;
+            width: 700px;
+            border: solid grey 1px;
+            margin-right: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container"></div>
+<div class="diagnostics"></div>
+
+<script type="text/javascript">
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("file")) {
+      throw Error("no file given");
+    }
+
+    const container = d3.select("div.container");
+    drawGraph(container, params.get("file"));
+</script>
+
+</body>
+</html>

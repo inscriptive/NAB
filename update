@@ -1,2 +1,6 @@
 rm -rf results/inscriptive/*
 cp -r ~/nab/* results/inscriptive
+pushd scripts
+rm results
+ln -s ../results
+popd
