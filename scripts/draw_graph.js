@@ -9,6 +9,19 @@ const drawGraph = async(container, file) => {
     })
   }));
 
+  const allLabels = await (new Promise((resolve, reject) => {
+    d3.json("combined_windows.json", (error, response) => {
+      if (error != null) {
+        reject(error);
+      } else {
+        resolve(response);
+      }
+    })
+  }));
+  const dataFileName = file.slice(20).replace("inscriptive_", "");
+  const labels = allLabels[dataFileName];
+  console.log(labels);
+
   const height = 300;
   const width = 1000;
 
@@ -42,7 +55,7 @@ const drawGraph = async(container, file) => {
     .ticks(5);
 
   const yScale = d3.scaleLinear()
-    .domain(d3.extent(data, (d) => d.value))
+    .domain(d3.extent(data, (d) => Number.parseFloat(d.value)))
     .range([innerHeight + margin.top, margin.top])
     .nice(5);
   const yAxis = d3.axisLeft(yScale)
@@ -75,13 +88,36 @@ const drawGraph = async(container, file) => {
 
   const anomalyScoreLine = d3.line()
     .x(dataLine.x())
-    .y((d) => anomalyScoreScale(d.anomaly_score));
+    .y((d) => {
+      const ratio = 1.0 / (1.0 - d.anomaly_score);
+      const logRatio = Math.log(ratio);
+      const val = -1.0 + 2.0 / (1 + Math.exp(-logRatio / 6));
+      return anomalyScoreScale(val);
+    });
 
   const anomalyScoreLinePath = chart.append("path")
     .datum(data)
     .attr("fill", "none")
     .attr("stroke", "red")
-    .attr("opacity", 0.5);
+    .attr("opacity", 0.2);
+
+  const labeledAnomalies = chart.selectAll("rect.label")
+    .data(labels)
+    .enter()
+    .append("rect")
+    .attr("class", "label")
+    .attr("height", innerHeight)
+    .attr("y", margin.top)
+    .attr("fill", "green")
+    .attr("opacity", 0.1);
+
+  const clickRuler = chart.append("rect")
+    .datum([undefined])
+    .attr("fill", "green")
+    .attr("stroke", "green")
+    .attr("width", 1)
+    .attr("height", innerHeight)
+    .attr("y", margin.top);
 
   const highlighter = {
     from: new Date(),
@@ -96,8 +132,8 @@ const drawGraph = async(container, file) => {
     .attr("height", innerHeight)
     .attr("y", margin.top);
   const highlightPortionOfGraph = (from, to) => {
-    highlighter.from = from;
-    highlighter.to = to;
+    highlighter.from = new Date(data[from].timestamp);
+    highlighter.to = new Date(data[to].timestamp);
     highlightRect
       .attr("width", xScale(highlighter.to) - xScale(highlighter.from))
       .attr("x", xScale(highlighter.from))
@@ -118,6 +154,8 @@ const drawGraph = async(container, file) => {
 
     dataLinePath.attr("d", dataLine);
     anomalyScoreLinePath.attr("d", anomalyScoreLine);
+    labeledAnomalies.attr("x", (label) => xScale(new Date(label[0])))
+      .attr("width", (label) => xScale(new Date(label[1])) - xScale(new Date(label[0])));
 
     highlightRect
       .attr("width", xScale(highlighter.to) - xScale(highlighter.from))
@@ -143,13 +181,33 @@ const drawGraph = async(container, file) => {
     .call(zoomer);
 
   const {redrawDiagnosticsAtTimestamp} = await drawDiagnostics(`${file}.diagnostics`, highlighter);
-  console.log(redrawDiagnosticsAtTimestamp);
 
   chart.on("click", function() {
     const [mouseX, _] = d3.mouse(this);
     const timestamp = xScale.invert(mouseX);
-    redrawDiagnosticsAtTimestamp(timestamp);
+    const canonicalTimestampIndex = getNearestCanonicalTimestampIndex(timestamp, data);
+    redrawDiagnosticsAtTimestamp(canonicalTimestampIndex);
+  });
+
+  chart.on("mousemove", function() {
+    const [mouseX, _] = d3.mouse(this);
+    const timestamp = xScale.invert(mouseX);
+    const canonicalTimestampIndex = getNearestCanonicalTimestampIndex(timestamp, data);
+    clickRuler.attr("x", xScale(new Date(data[canonicalTimestampIndex].timestamp)));
   });
 
   draw();
+};
+
+const getNearestCanonicalTimestampIndex = (mouseTimestamp, data) => {
+  const canonicalTimestampIndex = Math.min(data.length,
+    d3.bisector((d) => new Date(d.timestamp)).left(data, mouseTimestamp));
+  const otherCanonicalTimestampIndex = Math.max(0, canonicalTimestampIndex - 1);
+  const canonicalTimestamp = new Date(data[canonicalTimestampIndex].timestamp);
+  const otherCanonicalTimestamp = new Date(data[otherCanonicalTimestampIndex].timestamp);
+  if (Math.abs(mouseTimestamp - canonicalTimestamp) < Math.abs(mouseTimestamp - otherCanonicalTimestamp)) {
+    return canonicalTimestampIndex;
+  } else {
+    return otherCanonicalTimestampIndex;
+  }
 };

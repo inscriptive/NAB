@@ -1,4 +1,4 @@
-const drawDiagnostics = async (file, highlighter) => {
+const drawDiagnostics = async(file, highlighter) => {
 
   const data = await (new Promise((resolve, reject) => {
     d3.json(file, (error, response) => {
@@ -11,44 +11,42 @@ const drawDiagnostics = async (file, highlighter) => {
   }));
 
   const container = d3.select("div.diagnostics");
-  console.log(data);
 
-  data.feature_ids.sort();
-  const features = container.selectAll("div.feature")
-    .data(data.feature_ids)
-    .enter()
-    .append("div")
-    .attr("class", "feature-container");
-  features.append("h3")
-    .text((d) => d);
-
-  const featureDrawers = [];
-  features.each(function(featureId) {
-    featureDrawers.push(drawFeatureAtPoint(d3.select(this), featureId, data.data, highlighter));
-  });
-
-  const redrawDiagnosticsAtTimestamp = (timestamp) => {
+  const redrawDiagnosticsAtTimestamp = (index) => {
+    const {timestamp, diagnostics} = data.data[index];
+    container.selectAll("div.feature-container").remove();
+    const features = container.selectAll("div.feature-container")
+      .data(Object.keys(diagnostics), (d) => d);
+    features.exit().remove();
+    features.enter()
+      .append("div")
+      .attr("class", "feature-container")
+      .append("h3")
+      .text((d) => d);
     const surpriseScores = new Map();
-    featureDrawers.forEach((fd) => {
-      const {surprise} = fd.redrawFeatureAtTimestamp(timestamp);
-      surpriseScores.set(fd.featureId, surprise);
-    });
+    container.selectAll("div.feature-container").each(function (featureId) {
+        const {surprise} = drawFeatureAtPoint(d3.select(this), featureId, diagnostics[featureId],
+          highlighter);
+        surpriseScores.set(featureId, surprise);
+      });
+    features.sort((f1, f2) => {
+      console.log(f1);
+      console.log(f2);
 
-    features.sort((f1, f2) => surpriseScores.get(f2) - surpriseScores.get(f1));
+      return surpriseScores.get(f2) - surpriseScores.get(f1);
+    }).order();
   };
 
   return {redrawDiagnosticsAtTimestamp};
 };
 
-const drawFeatureAtPoint = (container, featureId, data, highlighter) => {
-  const relevantData = data.filter((d) => d.diagnostics.hasOwnProperty(featureId));
-
+const drawFeatureAtPoint = (container, featureId, diagnostic, highlighter) => {
   const height = 230;
   const width = 500;
 
   const margin = {
     top: 10,
-    left: 10,
+    left: 20,
     bottom: 35,
     right: 10
   };
@@ -56,13 +54,23 @@ const drawFeatureAtPoint = (container, featureId, data, highlighter) => {
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
-  const svg = container.append("svg")
+  const svg = container.selectAll("svg")
+    .data([undefined])
+    .enter()
+    .append("svg")
     .attr("width", width)
     .attr("height", height)
     .append("g")
     .attr("width", innerWidth)
     .attr("height", innerHeight)
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  const info = container.selectAll("div")
+    .data([undefined])
+    .enter()
+    .append("div");
+  info.append("text").text(`ExpectedDensity: ${diagnostic.expected_density}`);
+  info.append("text").text(`CurrentDensity: ${diagnostic.density_at_value}`);
 
   const xScale = d3.scaleLinear()
     .range([margin.left, innerWidth]);
@@ -73,7 +81,8 @@ const drawFeatureAtPoint = (container, featureId, data, highlighter) => {
 
   const xAxisGroup = svg.append("g").attr("class", "xaxis")
     .attr("transform", `translate(0, ${innerHeight + margin.top})`);
-  const yAxisGroup = svg.append("y").attr("class", "yaxis");
+  const yAxisGroup = svg.append("g").attr("class", "yaxis")
+    .attr("transform", `translate(${margin.left}, 0)`);
   const chart = svg.append("g").attr("class", "chart");
 
   const density = d3.area()
@@ -91,40 +100,36 @@ const drawFeatureAtPoint = (container, featureId, data, highlighter) => {
     .attr("y", margin.top + innerHeight - 100)
     .attr("fill", "red");
 
-  const redrawFeatureAtTimestamp = (timestamp) => {
-    const closestRelevantPoint = d3.bisector((d) => new Date(d.timestamp))
-      .right(relevantData, timestamp);
-    const currentDiagnostic = relevantData[Math.min(closestRelevantPoint, relevantData.length - 1)]
-      .diagnostics[featureId];
+  const currentDiagnostic = diagnostic;
 
-    const {start_index, level, length} = currentDiagnostic;
+  const {start_index, level, length} = currentDiagnostic;
 
-    const gm = gaussianMixture(currentDiagnostic.density.components);
-    xScale.domain(gm.xScaleDomain).nice(5);
-    yScale.domain(gm.yScaleDomain).nice(5);
-    console.log(currentDiagnostic);
-    densityPath.datum(gm.densities)
-      .attr("d", density);
-    currentValueMarker.attr("x", xScale(currentDiagnostic.value));
+  const gm = gaussianMixture(currentDiagnostic.density.components);
+  xScale.domain(gm.xScaleDomain).nice(5);
+  yScale.domain(gm.yScaleDomain).nice(5);
+  density
+    .x((d) => xScale(d.x))
+    .y0(() => yScale(0))
+    .y1((d) => yScale(d.density));
+  densityPath.datum(gm.densities)
+    .attr("d", density);
+  currentValueMarker.attr("x", xScale(currentDiagnostic.value));
 
-    xAxisGroup.call(xAxis);
-    yAxisGroup.call(yAxis);
+  xAxisGroup.call(xAxis);
+  yAxisGroup.call(yAxis);
 
-    console.log(data);
-    container
-      .on("mouseover", () => {
-        highlighter.highlight(
-          new Date(data[baseStartIndex(start_index, level)].timestamp),
-          new Date(data[baseStartIndex(start_index, level) + (length * (1 << level))].timestamp)
-        )
-      });
+  container
+    .on("mouseover", () => {
+      highlighter.highlight(
+        baseStartIndex(start_index, level),
+        baseStartIndex(start_index, level) + (length * (1 << level))
+      )
+    });
 
-    return {
-      surprise: 1.0 - (Math.sqrt(currentDiagnostic.density_at_value) / currentDiagnostic.expected_sqrt_density),
-    }
+  return {
+    surprise: Math.max(0.0,
+      1.0 - (currentDiagnostic.density_at_value / currentDiagnostic.expected_density)),
   };
-
-  return {featureId, redrawFeatureAtTimestamp};
 };
 
 const gaussianMixture = (components) => {
@@ -132,7 +137,7 @@ const gaussianMixture = (components) => {
   const max = d3.max(components, (c) => c.mean + 5 * Math.sqrt(c.variance));
   const xs = d3.range(min, max, (max - min) / 100);
   const densities = xs.map((x) => {
-    return { x: x, density: d3.sum(components, (comp) => gaussianDensity(comp)(x))}
+    return {x: x, density: d3.sum(components, (comp) => gaussianDensity(comp)(x) * comp.weight)}
   });
   const xScaleDomain = [min, max];
   const yScaleDomain = d3.extent(densities, (d) => d.density);
@@ -152,7 +157,7 @@ const gaussianDensity = (component) => {
     if (Math.abs(sigmas) > 8) {
       return 0.0;
     }
-    return reciprocalSqrtTwoPi * Math.exp(-0.5 * sigmas * sigmas);
+    return reciprocalSqrtTwoPi * Math.exp(-0.5 * sigmas * sigmas) / sigma;
   }
 };
 

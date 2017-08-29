@@ -132,7 +132,7 @@ class Corpus(object):
                       the corresponding data files.
     """
     filePaths = absoluteFilePaths(self.srcRoot)
-    dataSets = [DataFile(path) for path in filePaths if ".csv" in path]
+    dataSets = [DataFile(path) for path in filePaths if path.endswith(".csv")]
 
     def getRelativePath(srcRoot, srcPath):
       return srcPath[srcPath.index(srcRoot)+len(srcRoot):]\
