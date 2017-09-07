@@ -71,6 +71,7 @@ const drawFeatureAtPoint = (container, featureId, diagnostic, highlighter) => {
     .append("div");
   info.append("text").text(`ExpectedDensity: ${diagnostic.expected_density}`);
   info.append("text").text(`CurrentDensity: ${diagnostic.density_at_value}`);
+  info.append("text").text(`Order: ${diagnostic.order}`);
 
   const xScale = d3.scaleLinear()
     .range([margin.left, innerWidth]);
@@ -102,7 +103,7 @@ const drawFeatureAtPoint = (container, featureId, diagnostic, highlighter) => {
 
   const currentDiagnostic = diagnostic;
 
-  const {start_index, level, length} = currentDiagnostic;
+  const {base_start_index, base_end_index, level, length} = currentDiagnostic;
 
   const gm = gaussianMixture(currentDiagnostic.density.components);
   xScale.domain(gm.xScaleDomain).nice(5);
@@ -120,10 +121,7 @@ const drawFeatureAtPoint = (container, featureId, diagnostic, highlighter) => {
 
   container
     .on("mouseover", () => {
-      highlighter.highlight(
-        baseStartIndex(start_index, level),
-        baseStartIndex(start_index, level) + (length * (1 << level))
-      )
+      highlighter.highlight(base_start_index, base_end_index)
     });
 
   return {

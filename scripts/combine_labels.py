@@ -101,7 +101,7 @@ if __name__ == "__main__":
                       help="The percentage agreement you would like between "
                            "all labelers for a record to be considered "
                            "anomalous.")
-                      
+
   parser.add_argument("--verbosity",
                       default=1,
                       type=int,

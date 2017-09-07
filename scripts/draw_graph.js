@@ -21,6 +21,7 @@ const drawGraph = async(container, file) => {
   const dataFileName = file.slice(20).replace("inscriptive_", "");
   const labels = allLabels[dataFileName];
   console.log(labels);
+  console.log(data);
 
   const height = 300;
   const width = 1000;
@@ -89,10 +90,7 @@ const drawGraph = async(container, file) => {
   const anomalyScoreLine = d3.line()
     .x(dataLine.x())
     .y((d) => {
-      const ratio = 1.0 / (1.0 - d.anomaly_score);
-      const logRatio = Math.log(ratio);
-      const val = -1.0 + 2.0 / (1 + Math.exp(-logRatio / 6));
-      return anomalyScoreScale(val);
+      return anomalyScoreScale(d.anomaly_score);
     });
 
   const anomalyScoreLinePath = chart.append("path")
@@ -132,8 +130,13 @@ const drawGraph = async(container, file) => {
     .attr("height", innerHeight)
     .attr("y", margin.top);
   const highlightPortionOfGraph = (from, to) => {
-    highlighter.from = new Date(data[from].timestamp);
-    highlighter.to = new Date(data[to].timestamp);
+    const origin = new Date(data[0].timestamp).getTime();
+    const period = new Date(data[1].timestamp).getTime() - origin;
+    console.log(origin);
+    console.log(period);
+    highlighter.from = new Date(origin + from * period);
+    highlighter.to = new Date(origin + to * period);
+    console.log(highlighter);
     highlightRect
       .attr("width", xScale(highlighter.to) - xScale(highlighter.from))
       .attr("x", xScale(highlighter.from))

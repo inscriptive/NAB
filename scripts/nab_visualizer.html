@@ -53,24 +53,27 @@
         if (error != null) {
           reject(error);
         } else {
+          console.log(response);
           resolve(response);
         }
       });
     }))).map((f) => f.file);
 
+    console.log(files);
+
     const drawContainers = (query) => {
       const selection = d3.select("div.container")
-        .selectAll("div.graph-container")
-        .data(files.filter((f) => f.toLowerCase().includes(query)), (f) => f);
+          .selectAll("div.graph-container")
+          .data(files.filter((f) => f.toLowerCase().includes(query)), (f) => f);
       selection.exit().remove();
       selection.enter()
-        .append("div")
-        .classed("graph-container", true)
-        .classed("inactive", true)
-        .on("click", function(f) {
-          onClick(d3.select(this), f);
-        })
-        .text((f) => f);
+          .append("div")
+          .classed("graph-container", true)
+          .classed("inactive", true)
+          .on("click", function (f) {
+            onClick(d3.select(this), f);
+          })
+          .text((f) => f);
     };
 
     const onClick = async (container, file) => {
@@ -80,7 +83,7 @@
       window.location.href = `./graph_page.html?file=${encodeURIComponent(file)}`;
     };
 
-    d3.select("#query").on("keyup", function() {
+    d3.select("#query").on("keyup", function () {
       drawContainers(this.value);
     });
 
@@ -88,11 +91,11 @@
 
     const makeActive = (file) => {
       d3.selectAll("div.graph-container")
-        .classed("active", (f) => f === file)
-        .classed("inactive", (f) => f !== file);
+          .classed("active", (f) => f === file)
+          .classed("inactive", (f) => f !== file);
     };
 
-//    onClick(d3.select("div.graph-container"), "results/inscriptive/artificialNoAnomaly/inscriptive_art_daily_no_noise.csv");
+//    onClick(d3.select("div.gddraph-container"), "results/inscriptive/artificialNoAnomaly/inscriptive_art_daily_no_noise.csv");
   };
 
   doIt();
