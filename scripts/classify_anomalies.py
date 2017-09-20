@@ -30,6 +30,8 @@ for f in allWindows.keys():
     with open(diagnosticsFileName, "r") as diagnosticsFile:
         diagnostics = json.load(diagnosticsFile)
         for diag in diagnostics["data"]:
+            if not "diagnostics" in diag:
+                continue
             d = diag["diagnostics"]
             ts = parseTs2(diag["timestamp"])
             truePositive = any(map(lambda w: windowContains(w, ts), windows))
